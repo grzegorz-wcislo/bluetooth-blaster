@@ -1,16 +1,27 @@
 #include <mbed.h>
 
-#define DATA_SIZE 325
+#define DATA_SIZE 330
 #define CRC16 0x8005
-#define BUFFER_SIZE DATA_SIZE + 7
+#define BUFFER_SIZE DATA_SIZE + 2
 #define CORRECT_CRC 1
 #define START_SIGNAL 0xCC
+#define SPI_FREQUENCY 100000
 
 Serial pc(USBTX,USBRX);
 
 SPISlave device(PA_7, PA_6, PA_5, PA_15);
 
-void send_packet();
+int send_packet(uint8_t* buffer);
+
+void generate_random_data(uint8_t* buffer);
+
+uint16_t gen_xor(const uint8_t *data, int size) {
+  uint16_t out = 0;
+  for (int i = 0; i < size; i++) {
+    out ^= data[i];
+  }
+  return out;
+}
 
 uint16_t gen_crc16(const uint8_t *data, uint16_t size)
 {
@@ -52,11 +63,17 @@ uint16_t gen_crc16(const uint8_t *data, uint16_t size)
 }
 
 int main() {
-  device.frequency(1000000);
+  device.frequency(SPI_FREQUENCY);
+  uint8_t* buffer = (uint8_t *) malloc(BUFFER_SIZE * sizeof(uint8_t));
+
+  generate_random_data(buffer);
+
   while (true) {
     if (device.receive()) {
-      if (device.read() == START_SIGNAL)
-        send_packet();
+      if (device.read() == START_SIGNAL) {
+        while(send_packet(buffer) != 0);
+        generate_random_data(buffer);
+      }
     }
   }
   // srand(time(NULL));
@@ -130,8 +147,27 @@ int main() {
   // }
 }
 
-void send_packet() {
-  for(int i = 0;i<337;i++) {
-    device.reply('5');
+void generate_random_data(uint8_t* buffer) {
+  for(int i = 0; i < DATA_SIZE; i++) {
+    buffer[i] = (uint8_t) (rand()%26 + 'a');
   }
+  uint8_t* buffer_cpy = (uint8_t *) malloc(BUFFER_SIZE * sizeof(uint8_t));
+  memcpy(buffer_cpy, buffer, BUFFER_SIZE);
+  uint16_t crc = gen_xor(buffer_cpy, DATA_SIZE);
+  buffer[DATA_SIZE] = crc;
+  buffer[DATA_SIZE + 1] = (crc >> 8);
+  //pc.printf("%d %d\n", buffer[DATA_SIZE], buffer[DATA_SIZE+1]);
+  //   buffer[DATA_SIZE] = 'X';
+  // buffer[DATA_SIZE + 1] = 'X';
+}
+
+int send_packet(uint8_t* buffer) {
+  for(int i = 0;i<BUFFER_SIZE;i++) {
+    device.reply(buffer[i]);
+    if (device.read() == START_SIGNAL) {
+      //pc.printf("DUPA\n");
+      return 1;
+    }
+  }
+  return 0;
 }

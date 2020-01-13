@@ -6,7 +6,8 @@
 #define TRANSFER_SIGNAL 0xff
 #define DATA_SIZE 330
 #define CRC16 0x8005
-#define BUFFER_SIZE DATA_SIZE + 7
+#define BUFFER_SIZE DATA_SIZE + 2
+#define SPI_FREQUENCY 100000
 
 uint8_t* buffer;
 
@@ -14,6 +15,7 @@ uint8_t* buffer;
 bool end_transmission = false;
 BluetoothSerial SerialBT;
 uint8_t* get_buffer_from_SPI();
+uint16_t gen_xor(const uint8_t *data, int size);
 uint16_t gen_crc16(const uint8_t *data, uint16_t size);
 void check_and_send_by_bluetooth(int crc, int crc_from_buffer, uint8_t* buffer);
 void get_valid_spi_frame();
@@ -29,7 +31,7 @@ void setup() {
 }
 
 void loop() {
-  Serial.printf("STARTING READ\n");
+  //Serial.printf("STARTING READ\n");
   get_valid_spi_frame();
   send_bluetooth_buffer();
   // Serial.printf("%s\n", buffer);
@@ -45,37 +47,19 @@ void loop() {
 //     free(buffer_cpy);
 //     SPI.endTransaction();
 //   }
-}
-
-uint8_t* get_buffer_from_SPI() {
-  uint8_t* buffer = (uint8_t *) malloc(BUFFER_SIZE * sizeof(uint8_t));
-    for(int i = 0; i< BUFFER_SIZE;i++) {
-          buffer[i] = (uint8_t) SPI.transfer(TRANSFER_SIGNAL);
-          Serial.printf("%c", buffer[i]);
-    }
-    return buffer;
-}
-
-void check_and_send_by_bluetooth(int crc, int crc_from_buffer, uint8_t* buffer) {
-      if(crc == crc_from_buffer) {
-      if(buffer[0] == 1) {
-        end_transmission = true;
-      }
-      Serial.printf("%s", "\nCRC CORRECT\n");
-      SerialBT.write(buffer, BUFFER_SIZE);
-    }
+//delay(1000);
 }
 
 void get_valid_spi_frame() {
   do {
     get_spi_frame();
-    Serial.printf("\nFRAME GOT\n");
+    //Serial.printf("\nFRAME GOT\n");
   } while(!valid_spi_frame());
-  Serial.printf("\nFRAME VALID\n");
+  //Serial.printf("\nFRAME VALID\n");
 }
 
 void get_spi_frame() {
-  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+  SPI.beginTransaction(SPISettings(SPI_FREQUENCY, MSBFIRST, SPI_MODE0));
   SPI.transfer(START_SIGNAL);
   for (int i = 0; i < BUFFER_SIZE; i++) {
     buffer[i] = SPI.transfer(0);
@@ -84,12 +68,27 @@ void get_spi_frame() {
 }
 
 bool valid_spi_frame() {
+  uint8_t* buffer_cpy = (uint8_t *) malloc(BUFFER_SIZE * sizeof(uint8_t));
+  memcpy(buffer_cpy, buffer, BUFFER_SIZE);
+  uint16_t crc = gen_xor(buffer_cpy, DATA_SIZE);
+  uint16_t crc_from_buffer = buffer[DATA_SIZE] | (buffer[DATA_SIZE+1]<<8);
+  return crc_from_buffer == crc;
+  // Serial.printf("%d - %d", crc, crc_from_buffer);
   return true;
 }
 
 void send_bluetooth_buffer() {
   SerialBT.write(buffer, BUFFER_SIZE);
-  Serial.write(buffer, BUFFER_SIZE);
+  //Serial.write(buffer, BUFFER_SIZE);
+  //Serial.printf("\n");
+}
+
+uint16_t gen_xor(const uint8_t *data, int size) {
+  uint16_t out = 0;
+  for (int i = 0; i < size; i++) {
+    out ^= data[i];
+  }
+  return out;
 }
 
 uint16_t gen_crc16(const uint8_t *data, uint16_t size)
