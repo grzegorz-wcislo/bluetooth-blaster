@@ -4,10 +4,13 @@
 #define CRC16 0x8005
 #define BUFFER_SIZE DATA_SIZE + 7
 #define CORRECT_CRC 1
+#define START_SIGNAL 0xCC
 
 Serial pc(USBTX,USBRX);
 
 SPISlave device(PA_7, PA_6, PA_5, PA_15);
+
+void send_packet();
 
 uint16_t gen_crc16(const uint8_t *data, uint16_t size)
 {
@@ -49,66 +52,64 @@ uint16_t gen_crc16(const uint8_t *data, uint16_t size)
 }
 
 int main() {
-  srand(time(NULL));
-  pc.baud(9600);
-  device.format(8, 0);
-  device.reply(0x00);
-  device.frequency(1000);
-
-  bool start_command_recieved = false;
-  uint32_t frame_counter = 0;
-  pc.printf("WAITING FOR A DEVICE\n");
-  while(1) {
-    if(device.receive()) {
-      pc.printf("STARTING TO SEND DATA\n");
-      start_command_recieved = true;
+  device.frequency(1000000);
+  while (true) {
+    if (device.receive()) {
+      if (device.read() == START_SIGNAL)
+        send_packet();
     }
-
-    if(start_command_recieved) {
-      for(int j = 0;j<200;j++) {
-         uint8_t* buffer = (uint8_t *) malloc(BUFFER_SIZE * sizeof(uint8_t));
-         if(j == 199) {
-          buffer[0] = (uint8_t) 1;
-         } else {
-           buffer[0] = (uint8_t) 0;
-         }
-        for(int i = 1; i <= DATA_SIZE; i++) {
-          buffer[i] = (uint8_t) (rand()%26 + 'a');
-        }
-        buffer[DATA_SIZE + 1] = frame_counter;
-        buffer[DATA_SIZE + 2] = (frame_counter >> 8);
-        buffer[DATA_SIZE + 3] = (frame_counter >> 16);
-        buffer[DATA_SIZE + 4] = (frame_counter >> 24);
-        frame_counter++;
-        uint8_t* buffer_cpy = (uint8_t *) malloc(BUFFER_SIZE * sizeof(uint8_t));
-        memcpy(buffer_cpy, buffer, BUFFER_SIZE);
-        uint16_t crc = gen_crc16(buffer_cpy, DATA_SIZE+4);
-        buffer[DATA_SIZE + 5] = crc;
-        buffer[DATA_SIZE + 6] = (crc >> 8);
-        bool sent_correctly = false;
-        pc.printf("IS LAST FRAME: ");
-        pc.printf("%d", buffer[0]);
-        pc.printf("\nDATA SENT: ");
-        for(int i = 1; i <= DATA_SIZE;i++) {
-          pc.printf("%c", buffer[i]);
-        }
-        while(!sent_correctly) {
-          for(int i = 0; i< BUFFER_SIZE; i++) {
-            pc.printf("Waiting for reply\n");
-            device.reply((int) buffer[i]);
-          }
-          while(1) {
-            if(device.receive() && device.read() == CORRECT_CRC) {
-              sent_correctly = true;
-            }
-          }
-        }
-        free(buffer);
-        free(buffer_cpy);
-      }
-    }
-
   }
+  // srand(time(NULL));
+  // pc.baud(9600);
+  // device.format(8, 0);
+  // device.reply(0x00);
+  // device.frequency(1000);
+
+  // bool start_command_recieved = false;
+  // uint32_t frame_counter = 0;
+  // pc.printf("WAITING FOR A DEVICE\n");
+  // while(1) {
+  //   if(device.receive()) {
+  //     pc.printf("STARTING TO SEND DATA\n");
+  //     start_command_recieved = true;
+  //   }
+
+  //   if(start_command_recieved) {
+  //     for(int j = 0;j<200;j++) {
+  //        uint8_t* buffer = (uint8_t *) malloc(BUFFER_SIZE * sizeof(uint8_t));
+  //        if(j == 199) {
+  //         buffer[0] = (uint8_t) 1;
+  //        } else {
+  //          buffer[0] = (uint8_t) 0;
+  //        }
+  //       for(int i = 1; i <= DATA_SIZE; i++) {
+  //         buffer[i] = (uint8_t) (rand()%26 + 'a');
+  //       }
+  //       buffer[DATA_SIZE + 1] = frame_counter;
+  //       buffer[DATA_SIZE + 2] = (frame_counter >> 8);
+  //       buffer[DATA_SIZE + 3] = (frame_counter >> 16);
+  //       buffer[DATA_SIZE + 4] = (frame_counter >> 24);
+  //       frame_counter++;
+  //       uint8_t* buffer_cpy = (uint8_t *) malloc(BUFFER_SIZE * sizeof(uint8_t));
+  //       memcpy(buffer_cpy, buffer, BUFFER_SIZE);
+  //       uint16_t crc = gen_crc16(buffer_cpy, DATA_SIZE+4);
+  //       buffer[DATA_SIZE + 5] = crc;
+  //       buffer[DATA_SIZE + 6] = (crc >> 8);
+  //       pc.printf("IS LAST FRAME: ");
+  //       pc.printf("%d", buffer[0]);
+  //       pc.printf("\nDATA SENT: ");
+  //       for(int i = 1; i <= DATA_SIZE;i++) {
+  //         pc.printf("%c", buffer[i]);
+  //       }
+  //         for(int i = 0; i< BUFFER_SIZE; i++) {
+  //           device.reply((int) buffer[i]);
+  //         }
+  //       free(buffer);
+  //       free(buffer_cpy);
+  //     }
+  //   }
+
+  // }
 
 //  char buff[100];
 //   int i = 0;
@@ -127,4 +128,10 @@ int main() {
   //     i = 0;
   //   }
   // }
+}
+
+void send_packet() {
+  for(int i = 0;i<337;i++) {
+    device.reply('5');
+  }
 }
