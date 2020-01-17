@@ -1,18 +1,24 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <BluetoothSerial.h>
+#include <driver/spi_master.h>
+//#include "spi_master.h"
 
 #define START_SIGNAL 0xCC
 #define TRANSFER_SIGNAL 0xff
 #define DATA_SIZE 330
 #define CRC16 0x8005
 #define BUFFER_SIZE DATA_SIZE + 2
-#define SPI_FREQUENCY 100000
+#define SPI_FREQUENCY 1000
 
 uint8_t* buffer;
 
+uint8_t txbuffer[BUFFER_SIZE + 1];
+uint8_t rxbuffer[BUFFER_SIZE + 1];
+
 
 bool end_transmission = false;
+spi_device_handle_t device_handle;
 BluetoothSerial SerialBT;
 uint8_t* get_buffer_from_SPI();
 uint16_t gen_xor(const uint8_t *data, int size);
@@ -27,13 +33,47 @@ void setup() {
   Serial.begin(9600);
   SerialBT.begin("bluetooth-blaster-esp32");
   buffer = (uint8_t *) malloc(BUFFER_SIZE * sizeof(uint8_t));
-  SPI.begin(18,19,23,5);
-}
+  // SPI.begin(18,19,23,5);
+  txbuffer[0] = START_SIGNAL;
+  spi_bus_config_t bus_config = {
+    23,
+    19,
+    18,
+    -1,
+    -1,
+    0,
+    SPICOMMON_BUSFLAG_MASTER | SPICOMMON_BUSFLAG_NATIVE_PINS,
+    0
+  };
+  spi_device_interface_config_t device_config = {
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    SPI_FREQUENCY,
+    0,
+    5,
+    0,
+    1,
+    0,
+    0
+  };
+  Serial.printf("%d\n", spi_bus_initialize(VSPI_HOST, &bus_config, 1));
+  Serial.printf("%d\n", spi_bus_add_device(VSPI_HOST, &device_config, &device_handle));
+  }
 
 void loop() {
   //Serial.printf("STARTING READ\n");
   get_valid_spi_frame();
-  send_bluetooth_buffer();
+  //Serial.printf("%s", rxbuffer+1);
+  for (int i = 0; i < BUFFER_SIZE + 1; i++) {
+    Serial.printf("%x|", rxbuffer[i]);
+  }
+  Serial.printf("\n");
+  //send_bluetooth_buffer();
   // Serial.printf("%s\n", buffer);
 //   if(!end_transmission) {
 //     SPI.beginTransaction(SPISettings(1000, MSBFIRST, SPI_MODE0));
@@ -47,24 +87,33 @@ void loop() {
 //     free(buffer_cpy);
 //     SPI.endTransaction();
 //   }
-//delay(1000);
+delay(1000);
 }
 
 void get_valid_spi_frame() {
-  do {
+  // do {
     get_spi_frame();
     //Serial.printf("\nFRAME GOT\n");
-  } while(!valid_spi_frame());
+  // } while(!valid_spi_frame());
   //Serial.printf("\nFRAME VALID\n");
 }
 
 void get_spi_frame() {
-  SPI.beginTransaction(SPISettings(SPI_FREQUENCY, MSBFIRST, SPI_MODE0));
-  SPI.transfer(START_SIGNAL);
-  for (int i = 0; i < BUFFER_SIZE; i++) {
-    buffer[i] = SPI.transfer(0);
-  }
-  SPI.endTransaction();
+  // SPI.beginTransaction(SPISettings(SPI_FREQUENCY, MSBFIRST, SPI_MODE0));
+  // SPI.transfer(START_SIGNAL);
+    // buffer[i] = SPI.transfer(0);
+    spi_transaction_t transaction = {
+      0,
+      0,
+      0,
+      (BUFFER_SIZE+1)*8,
+      0,
+      0,
+      &txbuffer,
+      &rxbuffer,
+    };
+    spi_device_transmit(device_handle, &transaction);
+  // SPI.endTransaction();
 }
 
 bool valid_spi_frame() {
