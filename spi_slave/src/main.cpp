@@ -5,7 +5,7 @@
 #define BUFFER_SIZE DATA_SIZE + 2
 #define CORRECT_CRC 1
 #define START_SIGNAL 0xCC
-#define SPI_FREQUENCY 1000
+#define SPI_FREQUENCY 500000
 
 Serial pc(USBTX,USBRX);
 
@@ -165,10 +165,9 @@ void generate_random_data(uint8_t* buffer) {
 int send_packet(uint8_t* buffer) {
   for(int i = 0;i<BUFFER_SIZE;i++) {
     device.reply(buffer[i]);
-    // if (device.read() == START_SIGNAL) {
-    //   //pc.printf("DUPA\n");
-    //   return 1;
-    // }
+    if (device.read() == START_SIGNAL) {
+      return 1;
+    }
   }
   return 0;
 }

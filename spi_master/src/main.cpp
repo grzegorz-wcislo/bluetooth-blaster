@@ -9,7 +9,7 @@
 #define DATA_SIZE 330
 #define CRC16 0x8005
 #define BUFFER_SIZE DATA_SIZE + 2
-#define SPI_FREQUENCY 1000
+#define SPI_FREQUENCY 500000
 
 uint8_t* buffer;
 
@@ -68,12 +68,12 @@ void setup() {
 void loop() {
   //Serial.printf("STARTING READ\n");
   get_valid_spi_frame();
-  //Serial.printf("%s", rxbuffer+1);
-  for (int i = 0; i < BUFFER_SIZE + 1; i++) {
-    Serial.printf("%x|", rxbuffer[i]);
-  }
-  Serial.printf("\n");
-  //send_bluetooth_buffer();
+  // Serial.printf("%s", rxbuffer+1);
+  // for (int i = 0; i < BUFFER_SIZE + 1; i++) {
+  //   Serial.printf("%x|", rxbuffer[i]);
+  // }
+  // Serial.printf("\n");
+  send_bluetooth_buffer();
   // Serial.printf("%s\n", buffer);
 //   if(!end_transmission) {
 //     SPI.beginTransaction(SPISettings(1000, MSBFIRST, SPI_MODE0));
@@ -87,7 +87,7 @@ void loop() {
 //     free(buffer_cpy);
 //     SPI.endTransaction();
 //   }
-delay(1000);
+//delay(1000);
 }
 
 void get_valid_spi_frame() {
@@ -127,7 +127,7 @@ bool valid_spi_frame() {
 }
 
 void send_bluetooth_buffer() {
-  SerialBT.write(buffer, BUFFER_SIZE);
+  SerialBT.write(rxbuffer+1, BUFFER_SIZE);
   //Serial.write(buffer, BUFFER_SIZE);
   //Serial.printf("\n");
 }
