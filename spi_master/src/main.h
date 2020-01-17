@@ -1,6 +1,11 @@
 #ifndef main_h
 #define main_h
 
+#include <Arduino.h>
+#include <SPI.h>
+#include <BluetoothSerial.h>
+#include <driver/spi_master.h>
+
 void setup_serial();
 void setup_bluetooth();
 void setup_spi();

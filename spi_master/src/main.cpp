@@ -1,8 +1,4 @@
 #include "main.h"
-#include <Arduino.h>
-#include <SPI.h>
-#include <BluetoothSerial.h>
-#include <driver/spi_master.h>
 
 #define START_SIGNAL 0xCC
 #define TRANSFER_SIGNAL 0xff
@@ -72,14 +68,14 @@ void setup_spi() {
   txbuffer[0] = START_SIGNAL;
 
   transaction = {
-    .flags = 0,
-    .cmd = 0,
-    .addr = 0,
-    .length = BUFFER_SIZE*8,
-    .rxlength = 0,
-    .user = 0,
-    .tx_buffer = &txbuffer,
-    .rx_buffer = &rxbuffer,
+    0, //flags
+    0, //cmd
+    0, //addr
+    BUFFER_SIZE*8, //length
+    0, //rxlength
+    0, //user
+    &txbuffer, //tx_buffer
+    &rxbuffer //rx_buffer
   };
 
   spi_bus_config_t bus_config = {
